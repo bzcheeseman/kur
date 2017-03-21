@@ -33,5 +33,6 @@ from .merge import Merge
 from .dropout import Dropout
 from .repeat import Repeat
 from .embedding import Embedding
+from .ntm import NTM
 
 ### EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF.EOF

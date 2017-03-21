@@ -158,7 +158,24 @@ class Ctc(Loss):
 		"""
 		backend = model.get_backend()
 
-		if backend.get_name() == 'keras':
+		if backend.get_name() == 'pytorch':
+			from warpctc_pytorch import CTCLoss  # Using Sean Naren's CTC binding of Baidu Warp-CTC for pytorch
+			import torch
+
+			print()
+
+			loss = model.data.move(CTCLoss())
+
+			return [
+				[
+					(target, model.data.placeholder(target))
+				],
+				lambda inputs, output: loss(
+					output, inputs[0], self.output_length, self.output_length
+				)
+			]
+
+		elif backend.get_name() == 'keras':
 
 			import keras.backend as K
 
