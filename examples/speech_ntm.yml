@@ -1,67 +1,3 @@
----
-
-###############################################################################
-# Pro-tips:
-#
-# - Use YAML's anchors! This let's you define a value (even a dictionary), and
-#   reuse, or even change, parts of it later. YAML anchors are incredible for
-#   defining constant values that you want to reuse all over the place. You can
-#   define an anchor like this:
-#     KEY: &my_anchor
-#   Note that the value of KEY can be anything. All of these are allowed:
-#     KEY: &my_anchor "my value"
-#     KEY: &my_ancor
-#       A: B
-#       C: D
-#     KEY: &my_anchor [1, 2, 3]
-#   You can then refer back to your anchors like this:
-#     ANOTHER_KEY: *my_anchor
-#   This sets the value of ANOTHER_KEY to be the same thing as the original
-#   KEY. Now let's say that your anchor is a dictionary, but you want to refer
-#   to it with modified values later. Try this:
-#     KEY: &my_anchor
-#       FIRST: VALUE_1
-#       SECOND: VALUE_2
-#     ANOTHER_KEY:
-#       <<: *my_anchor
-#       SECOND: VALUE_2_NEW
-#       THIRD: VALUE_3
-#     MORE_KEY: *my_anchor
-#   These are 100% equivalent to this more verbose structure:
-#     KEY:
-#       FIRST: VALUE_1
-#       SECOND: VALUE_2
-#     ANOTHER_KEY:
-#       FIRST: VALUE_1
-#       SECOND: VALUE_2_NEW
-#       THIRD: VALUE_3
-#     MORE_KEY:
-#       FIRST: VALUE_1
-#       SECOND: VALUE_2
-#
-# - Use the Jinja2 engine! It is really powerful, and it's most appropriately
-#   used to do on-the-fly interpretation/evaluation of values in the "model"
-#   section of the Kurfile.
-#
-# - So how do you know when to use YAML anchors as opposed to Jinja2
-#   expressions? Here are some tips.
-#
-#   YAML anchors only work within a single YAML file, and are evaluated the
-#   moment the file is loaded. This means you can't use YAML anchors from a
-#   JSON Kurfile, and you can't reference anchors in other Kurfiles.
-#
-#   Jinja2 is interpreted after all Kurfiles are loaded, which means that
-#   many different Kurfiles can share variables via Jinja2. Jinja2
-#   expressions can also be used in JSON Kurfiles.
-#
-#   It's almost like YAML anchors are "compile-time constants" but Jinja2
-#   expressions are interpreted at run-time. As a result, the value of a
-#   Jinja2 expression could be different at different points in the
-#   Kurfile (e.g., if you use Jinja2 to reference the previous layer in a
-#   model, obviously the interpretation/value of "previous layer" resolves
-#   to something different for the second layer in the model as compared to the
-#   fifth layer in the model.
-
 ###############################################################################
 settings:
 
@@ -77,13 +13,15 @@ settings:
     # Need for CTC
     size: 28
 
+  batch: 10
+
   # Setting up the backend.
   backend:
-    name: pytorch
+    name: 'pytorch'
 
   # Batch sizes
   provider: &provider
-    batch_size: 16
+    batch_size: "{{ batch }}"
     force_batch_size: yes
 
   # Where to put the data.
@@ -121,15 +59,20 @@ model:
   - for:
       range: "{{ rnn.depth }}"
       iterate:
-        - recurrent:
-            size: "{{ rnn.size }}"
-            sequence: yes
+        - ntm:
+            memory_dims: (128, 1000)
+            batch_size: "{{ batch }}"
+            num_inputs: "{{ rnn.size }}"
+            num_hidden: 5000
+            num_outputs: "{{ rnn.size }}"
+            bidirectional: yes
+            controller_type: feed_forward
         - batch_normalization
 
   # A dense layer to get everything into the right output shape.
   - parallel:
       apply:
-        - dense: "{{ vocab.size + 1 }}"
+      - dense: "{{ vocab.size + 1 }}"
   - activation: softmax
 
   # The output is the transcription.
@@ -159,6 +102,7 @@ train:
     nesterov: yes
     learning_rate: 2e-4
     momentum: 0.9
+    decay: 0.0005
     clip:
       norm: 100
 
